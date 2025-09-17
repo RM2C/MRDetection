@@ -3,7 +3,7 @@
 using System;
 using System.Collections;
 using Meta.XR.Samples;
-using Unity.Sentis;
+
 using UnityEngine;
 
 namespace PassthroughCameraSamples.MultiObjectDetection
@@ -19,9 +19,9 @@ namespace PassthroughCameraSamples.MultiObjectDetection
         // AIモデルへの入力画像サイズ（通常は正方形で640x640ピクセル）
         [SerializeField] private Vector2Int m_inputSize = new(640, 640);
         // 推論実行バックエンド（CPU/GPU選択、パフォーマンスに影響）
-        [SerializeField] private BackendType m_backend = BackendType.CPU;
+        [SerializeField] private Unity.InferenceEngine.BackendType m_backend = Unity.InferenceEngine.BackendType.CPU;
         // 学習済みAIモデルのアセット（YOLO等のオブジェクト検出モデル）
-        [SerializeField] private ModelAsset m_sentisModel;
+        [SerializeField] private Unity.InferenceEngine.ModelAsset m_sentisModel;
         // フレーム毎に処理するニューラルネットワークレイヤー数（メインスレッドブロック防止）
         [SerializeField] private int m_layersPerFrame = 25;
         // オブジェクトクラス名のリストを含むテキストファイル
@@ -35,7 +35,7 @@ namespace PassthroughCameraSamples.MultiObjectDetection
 
         [Header("[Editor Only] Convert to Sentis")]
         // エディタ専用：ONNXモデルからSentis形式への変換用
-        public ModelAsset OnnxModel;
+        public Unity.InferenceEngine.ModelAsset OnnxModel;
         // IoU（交差比）閾値：重複した検出ボックスの統合基準
         [SerializeField, Range(0, 1)] private float m_iouThreshold = 0.6f;
         // 信頼度スコア閾値：この値以下の検出結果は除外
@@ -43,25 +43,25 @@ namespace PassthroughCameraSamples.MultiObjectDetection
         [Space(40)]
 
         // Sentis推論エンジンのワーカーインスタンス
-        private Worker m_engine;
+        private Unity.InferenceEngine.Worker m_engine;
         // 非同期推論処理のスケジューラー
         private IEnumerator m_schedule;
         // 推論処理の開始状態フラグ
         private bool m_started = false;
         // モデルへの入力テンソル（画像データ）
-        private Tensor<float> m_input;
+        private Unity.InferenceEngine.Tensor<float> m_input;
         // ロードされたAIモデル
-        private Model m_model;
+        private Unity.InferenceEngine.Model m_model;
         // 推論結果のダウンロード処理ステート
         private int m_download_state = 0;
         // 推論結果の座標データテンソル
-        private Tensor<float> m_output;
+        private Unity.InferenceEngine.Tensor<float> m_output;
         // 推論結果のラベルIDデータテンソル
-        private Tensor<int> m_labelIDs;
+        private Unity.InferenceEngine.Tensor<int> m_labelIDs;
         // 座標データの非同期取得用テンソル
-        private Tensor<float> m_pullOutput;
+        private Unity.InferenceEngine.Tensor<float> m_pullOutput;
         // ラベルIDの非同期取得用テンソル
-        private Tensor<int> m_pullLabelIDs;
+        private Unity.InferenceEngine.Tensor<int> m_pullLabelIDs;
         // 非同期データ取得の待機状態フラグ
         private bool m_isWaiting = false;
 
@@ -128,7 +128,7 @@ namespace PassthroughCameraSamples.MultiObjectDetection
                 // 検出用キャプチャデータを更新
                 m_uiInference.SetDetectionCapture(targetTexture);
                 // テクスチャをSentisテンソルに変換し、推論をスケジュール
-                m_input = TextureConverter.ToTensor(targetTexture, m_inputSize.x, m_inputSize.y, 3);
+                m_input = Unity.InferenceEngine.TextureConverter.ToTensor(targetTexture, m_inputSize.x, m_inputSize.y, 3);
                 m_schedule = m_engine.ScheduleIterable(m_input);
                 m_download_state = 0;
                 m_started = true;
@@ -153,14 +153,14 @@ namespace PassthroughCameraSamples.MultiObjectDetection
         private void LoadModel()
         {
             // Sentisモデルアセットからモデルを読み込み
-            var model = ModelLoader.Load(m_sentisModel);
+            var model = Unity.InferenceEngine.ModelLoader.Load(m_sentisModel);
             Debug.Log($"Sentis model loaded correctly with iouThreshold: {m_iouThreshold} and scoreThreshold: {m_scoreThreshold}");
 
             // 指定されたバックエンドで推論エンジンを作成
-            m_engine = new Worker(model, m_backend);
+            m_engine = new Unity.InferenceEngine.Worker(model, m_backend);
 
             // 空の入力でダミー推論を実行してモデルをメモリにロード（メインスレッドの一時停止を防ぐ）
-            var input = TextureConverter.ToTensor(new Texture2D(m_inputSize.x, m_inputSize.y), m_inputSize.x, m_inputSize.y, 3);
+            var input = Unity.InferenceEngine.TextureConverter.ToTensor(new Texture2D(m_inputSize.x, m_inputSize.y), m_inputSize.x, m_inputSize.y, 3);
             m_engine.Schedule(input);
             IsModelLoaded = true;
         }
@@ -206,7 +206,7 @@ namespace PassthroughCameraSamples.MultiObjectDetection
         private void PollRequestOuput()
         {
             // モデル出力0（座標データ）をSentisプルリクエストで取得
-            m_pullOutput = m_engine.PeekOutput(0) as Tensor<float>;
+            m_pullOutput = m_engine.PeekOutput(0) as Unity.InferenceEngine.Tensor<float>;
             if (m_pullOutput.dataOnBackend != null)
             {
                 m_pullOutput.ReadbackRequest();
@@ -225,7 +225,7 @@ namespace PassthroughCameraSamples.MultiObjectDetection
         private void PollRequestLabelIDs()
         {
             // モデル出力1（ラベルIDデータ）をSentisプルリクエストで取得
-            m_pullLabelIDs = m_engine.PeekOutput(1) as Tensor<int>;
+            m_pullLabelIDs = m_engine.PeekOutput(1) as Unity.InferenceEngine.Tensor<int>;
             if (m_pullLabelIDs.dataOnBackend != null)
             {
                 m_pullLabelIDs.ReadbackRequest();
