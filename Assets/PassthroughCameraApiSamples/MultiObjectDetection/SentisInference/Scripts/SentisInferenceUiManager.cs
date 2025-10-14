@@ -2,7 +2,7 @@
 
 using System.Collections.Generic;
 using Meta.XR.Samples;
-using Unity.Sentis;
+
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -125,7 +125,7 @@ namespace PassthroughCameraSamples.MultiObjectDetection
         /// <param name="labelIDs">推論結果のラベルIDテンソル</param>
         /// <param name="imageWidth">入力画像の幅</param>
         /// <param name="imageHeight">入力画像の高さ</param>
-        public void DrawUIBoxes(Tensor<float> output, Tensor<int> labelIDs, float imageWidth, float imageHeight)
+        public void DrawUIBoxes(Unity.InferenceEngine.Tensor<float> output, Unity.InferenceEngine.Tensor<int> labelIDs, float imageWidth, float imageHeight)
         {
             // キャンバス位置を更新
             m_detectionCanvas.UpdatePosition();
